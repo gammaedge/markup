@@ -78,6 +78,10 @@ export interface EditorHandle {
   format: (action: string, value?: any) => void;
   goToLine: (line: number) => void;
   getCurrentLine: () => number;
+  find: (query: string, options: any) => { current: number; total: number };
+  replace: (replacement: string) => void;
+  replaceAll: (query: string, replacement: string, options: any) => number;
+  navigateFind: (direction: 'next' | 'prev') => void;
 }
 
 const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, showPreview }, ref) => {
@@ -252,6 +256,88 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, showP
       const view = viewRef.current;
       const pos = view.state.selection.main.head;
       return view.state.doc.lineAt(pos).number - 1;
+    },
+    find: (query: string, options: any) => {
+      if (!viewRef.current || !query) return { current: 0, total: 0 };
+      
+      const view = viewRef.current;
+      const doc = view.state.doc;
+      const text = doc.toString();
+      
+      let regex: RegExp;
+      try {
+        if (options.regex) {
+          regex = new RegExp(query, options.caseSensitive ? 'g' : 'gi');
+        } else {
+          const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const pattern = options.wholeWord ? `\\b${escapedQuery}\\b` : escapedQuery;
+          regex = new RegExp(pattern, options.caseSensitive ? 'g' : 'gi');
+        }
+      } catch {
+        return { current: 0, total: 0 };
+      }
+      
+      const matches = Array.from(text.matchAll(regex));
+      const currentPos = view.state.selection.main.from;
+      let current = 0;
+      
+      for (let i = 0; i < matches.length; i++) {
+        if (matches[i].index! >= currentPos) {
+          current = i + 1;
+          break;
+        }
+      }
+      
+      return { current: current || (matches.length > 0 ? 1 : 0), total: matches.length };
+    },
+    replace: (replacement: string) => {
+      if (!viewRef.current) return;
+      
+      const view = viewRef.current;
+      const { from, to } = view.state.selection.main;
+      
+      if (from !== to) {
+        view.dispatch({
+          changes: { from, to, insert: replacement },
+          selection: { anchor: from + replacement.length }
+        });
+      }
+    },
+    replaceAll: (query: string, replacement: string, options: any) => {
+      if (!viewRef.current || !query) return 0;
+      
+      const view = viewRef.current;
+      const doc = view.state.doc;
+      const text = doc.toString();
+      
+      let regex: RegExp;
+      try {
+        if (options.regex) {
+          regex = new RegExp(query, options.caseSensitive ? 'g' : 'gi');
+        } else {
+          const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const pattern = options.wholeWord ? `\\b${escapedQuery}\\b` : escapedQuery;
+          regex = new RegExp(pattern, options.caseSensitive ? 'g' : 'gi');
+        }
+      } catch {
+        return 0;
+      }
+      
+      const matches = Array.from(text.matchAll(regex));
+      const changes = matches.map(match => ({
+        from: match.index!,
+        to: match.index! + match[0].length,
+        insert: replacement
+      })).reverse();
+      
+      if (changes.length > 0) {
+        view.dispatch({ changes });
+      }
+      
+      return changes.length;
+    },
+    navigateFind: (direction: 'next' | 'prev') => {
+      // TODO: Implement find navigation
     }
   }), []);
 

@@ -8,6 +8,9 @@ import SplitPane from './components/SplitPane';
 import FocusMode from './components/FocusMode';
 import TabBar, { TabItem } from './components/TabBar';
 import Sidebar from './components/Sidebar';
+import FindReplace from './components/FindReplace';
+import Breadcrumb from './components/Breadcrumb';
+import QuickNav from './components/QuickNav';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
 const AppContainer = styled.div`
@@ -34,6 +37,7 @@ const ContentArea = styled.div`
   flex: 1;
   display: flex;
   overflow: hidden;
+  position: relative;
 `;
 
 interface Document {
@@ -61,6 +65,9 @@ const App: React.FC = () => {
   const [focusMode, setFocusMode] = useState(false);
   const [recentFiles, setRecentFiles] = useState<Array<{ path: string; name: string }>>([]);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
+  const [showFindReplace, setShowFindReplace] = useState(false);
+  const [showQuickNav, setShowQuickNav] = useState(false);
+  const [currentLine, setCurrentLine] = useState(0);
   const editorRef = useRef<EditorHandle>(null);
   const nextDocId = useRef(2);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -145,7 +152,35 @@ const App: React.FC = () => {
   
   const handleNavigate = useCallback((line: number) => {
     editorRef.current?.goToLine(line);
+    setCurrentLine(line);
   }, []);
+  
+  const handleFind = useCallback((query: string, options: any) => {
+    return editorRef.current?.find(query, options) || { current: 0, total: 0 };
+  }, []);
+  
+  const handleReplace = useCallback((replacement: string) => {
+    editorRef.current?.replace(replacement);
+  }, []);
+  
+  const handleReplaceAll = useCallback((query: string, replacement: string, options: any) => {
+    return editorRef.current?.replaceAll(query, replacement, options) || 0;
+  }, []);
+  
+  const handleNavigateFind = useCallback((direction: 'next' | 'prev') => {
+    editorRef.current?.navigateFind(direction);
+  }, []);
+  
+  // Update current line on content change
+  useEffect(() => {
+    const updateCurrentLine = () => {
+      const line = editorRef.current?.getCurrentLine() || 0;
+      setCurrentLine(line);
+    };
+    
+    const timer = setInterval(updateCurrentLine, 500);
+    return () => clearInterval(timer);
+  }, [activeDocId]);
   
   const handleNewTab = useCallback(() => {
     const newDoc: Document = {
@@ -239,6 +274,13 @@ const App: React.FC = () => {
     'cmd+shift+b': () => setShowSidebar(!showSidebar),
     'cmd+t': () => handleNewTab(),
     'cmd+w': () => handleTabClose(activeDocId),
+    'cmd+f': () => setShowFindReplace(true),
+    'cmd+h': () => setShowFindReplace(true),
+    'cmd+p': () => setShowQuickNav(true),
+    'escape': () => {
+      setShowFindReplace(false);
+      setShowQuickNav(false);
+    },
   }), [handleFormat, showPreview, focusMode, showSidebar, handleNewTab, handleTabClose, activeDocId]);
 
   useKeyboardShortcuts(shortcuts);
@@ -256,6 +298,12 @@ const App: React.FC = () => {
   return (
     <AppContainer>
       <FocusMode isActive={focusMode} />
+      <QuickNav
+        isVisible={showQuickNav}
+        content={activeDoc.content}
+        onClose={() => setShowQuickNav(false)}
+        onNavigate={handleNavigate}
+      />
       <Toolbar 
         onTogglePreview={() => setShowPreview(!showPreview)}
         showPreview={showPreview}
@@ -280,7 +328,20 @@ const App: React.FC = () => {
             onTabClose={handleTabClose}
             onNewTab={handleNewTab}
           />
+          <Breadcrumb
+            content={activeDoc.content}
+            currentLine={currentLine}
+            onNavigate={handleNavigate}
+          />
           <ContentArea>
+            <FindReplace
+              isVisible={showFindReplace}
+              onClose={() => setShowFindReplace(false)}
+              onFind={handleFind}
+              onReplace={handleReplace}
+              onReplaceAll={handleReplaceAll}
+              onNavigate={handleNavigateFind}
+            />
             {showPreview ? (
               <SplitPane 
                 defaultSplit={splitPosition} 
