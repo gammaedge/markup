@@ -18,10 +18,10 @@ const EditorContainer = styled.div<{ $fullWidth: boolean }>`
     font-size: 15px;
     
     .cm-content {
-      padding: 60px 80px;
+      padding: 40px 40px;
       font-family: 'SF Mono', Menlo, Monaco, 'Courier New', monospace;
       line-height: 1.8;
-      max-width: 760px;
+      max-width: 800px;
       margin: 0 auto;
       width: 100%;
       caret-color: var(--accent-color);
