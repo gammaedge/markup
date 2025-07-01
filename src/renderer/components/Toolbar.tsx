@@ -81,9 +81,11 @@ interface ToolbarProps {
   onTogglePreview: () => void;
   showPreview: boolean;
   onFormat: (action: string, value?: any) => void;
+  onToggleSidebar?: () => void;
+  showSidebar?: boolean;
 }
 
-const Toolbar: React.FC<ToolbarProps> = ({ onTogglePreview, showPreview, onFormat }) => {
+const Toolbar: React.FC<ToolbarProps> = ({ onTogglePreview, showPreview, onFormat, onToggleSidebar, showSidebar }) => {
   return (
     <ToolbarContainer>
       <ToolbarSection>
@@ -147,6 +149,14 @@ const Toolbar: React.FC<ToolbarProps> = ({ onTogglePreview, showPreview, onForma
       </ToolbarSection>
 
       <ToolbarButtons>
+        {onToggleSidebar && (
+          <IconButton onClick={onToggleSidebar} $active={showSidebar} title="Toggle Sidebar (Cmd+Shift+B)">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+            </svg>
+          </IconButton>
+        )}
+        <Divider />
         <IconButton onClick={onTogglePreview} $active={showPreview} title="Toggle Preview">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
             {showPreview ? (

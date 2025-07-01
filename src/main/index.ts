@@ -75,6 +75,17 @@ function createAppMenu(): void {
           label: 'Save As...',
           accelerator: 'CmdOrCtrl+Shift+S',
           click: () => mainWindow?.webContents.send('file-save-as')
+        },
+        { type: 'separator' },
+        {
+          label: 'Export...',
+          accelerator: 'CmdOrCtrl+Shift+E',
+          click: () => mainWindow?.webContents.send('file-export')
+        },
+        {
+          label: 'Print...',
+          accelerator: 'CmdOrCtrl+Shift+P',
+          click: () => mainWindow?.webContents.send('file-print')
         }
       ]
     },
@@ -165,6 +176,104 @@ ipcMain.handle('get-theme', () => {
 
 nativeTheme.on('updated', () => {
   mainWindow?.webContents.send('theme-changed', nativeTheme.shouldUseDarkColors ? 'dark' : 'light');
+});
+
+ipcMain.handle('export-pdf', async (event, { html, options }) => {
+  try {
+    const { filePath } = await dialog.showSaveDialog({
+      defaultPath: 'document.pdf',
+      filters: [{ name: 'PDF Files', extensions: ['pdf'] }]
+    });
+    
+    if (!filePath) return { success: false };
+    
+    // Create a hidden window to render the HTML
+    const pdfWindow = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true
+      }
+    });
+    
+    await pdfWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+    
+    const pdfOptions: Electron.PrintToPDFOptions = {
+      landscape: false,
+      printBackground: true,
+      preferCSSPageSize: true
+    };
+    
+    const data = await pdfWindow.webContents.printToPDF(pdfOptions);
+    await fs.writeFile(filePath, data);
+    
+    pdfWindow.close();
+    
+    return { success: true, filePath };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+ipcMain.handle('export-html', async (event, { html, title }) => {
+  try {
+    const { filePath } = await dialog.showSaveDialog({
+      defaultPath: `${title || 'document'}.html`,
+      filters: [{ name: 'HTML Files', extensions: ['html'] }]
+    });
+    
+    if (!filePath) return { success: false };
+    
+    await fs.writeFile(filePath, html, 'utf-8');
+    
+    return { success: true, filePath };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+ipcMain.handle('export-docx', async (event, { buffer, title }) => {
+  try {
+    const { filePath } = await dialog.showSaveDialog({
+      defaultPath: `${title || 'document'}.docx`,
+      filters: [{ name: 'Word Documents', extensions: ['docx'] }]
+    });
+    
+    if (!filePath) return { success: false };
+    
+    await fs.writeFile(filePath, Buffer.from(buffer));
+    
+    return { success: true, filePath };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+ipcMain.handle('print', async (event, { html }) => {
+  try {
+    // Create a hidden window to render the HTML
+    const printWindow = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true
+      }
+    });
+    
+    await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+    
+    printWindow.webContents.print({
+      silent: false,
+      printBackground: true
+    });
+    
+    // Close the window after a delay to ensure printing is initiated
+    setTimeout(() => printWindow.close(), 1000);
+    
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
 });
 
 app.whenReady().then(createWindow);

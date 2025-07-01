@@ -7,11 +7,13 @@ import StatusBar from './components/StatusBar';
 import SplitPane from './components/SplitPane';
 import FocusMode from './components/FocusMode';
 import TabBar, { TabItem } from './components/TabBar';
-import Sidebar from './components/Sidebar';
+import ResizableSidebar from './components/ResizableSidebar';
 import FindReplace from './components/FindReplace';
 import Breadcrumb from './components/Breadcrumb';
 import QuickNav from './components/QuickNav';
+import ExportDialog, { ExportFormat } from './components/ExportDialog';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { convertMarkdownToHTML, convertMarkdownToDocx } from './utils/export';
 
 const AppContainer = styled.div`
   display: flex;
@@ -61,16 +63,19 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [showPreview, setShowPreview] = useState(true);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [sidebarWidth, setSidebarWidth] = useState(260);
   const [splitPosition, setSplitPosition] = useState(50);
   const [focusMode, setFocusMode] = useState(false);
   const [recentFiles, setRecentFiles] = useState<Array<{ path: string; name: string }>>([]);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
   const [showFindReplace, setShowFindReplace] = useState(false);
   const [showQuickNav, setShowQuickNav] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
   const [currentLine, setCurrentLine] = useState(0);
   const editorRef = useRef<EditorHandle>(null);
   const nextDocId = useRef(2);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const exportFunctionRef = useRef<any>(null);
   
   const activeDoc = documents.find(doc => doc.id === activeDocId) || documents[0];
 
@@ -125,6 +130,16 @@ const App: React.FC = () => {
 
     window.electronAPI.onFileSaveAs(() => {
       handleSaveAs();
+    });
+    
+    window.electronAPI.onFileExport(() => {
+      setShowExportDialog(true);
+    });
+    
+    window.electronAPI.onFilePrint(() => {
+      if (exportFunctionRef.current) {
+        exportFunctionRef.current('print', { includeStyles: true, includeHighlighting: true });
+      }
     });
   }, []);
 
@@ -265,6 +280,61 @@ const App: React.FC = () => {
   const handleFormat = useCallback((action: string, value?: any) => {
     editorRef.current?.format(action, value);
   }, []);
+  
+  const handleExport = useCallback(async (format: ExportFormat, options: any) => {
+    const title = activeDoc.title.replace(/\.[^/.]+$/, ''); // Remove extension
+    
+    try {
+      switch (format) {
+        case 'html': {
+          const html = await convertMarkdownToHTML(activeDoc.content, options);
+          const result = await window.electronAPI.exportHTML({ html, title });
+          if (!result.success) {
+            console.error('Export failed:', result.error);
+          }
+          break;
+        }
+        
+        case 'pdf': {
+          const html = await convertMarkdownToHTML(activeDoc.content, {
+            ...options,
+            includeStyles: true
+          });
+          const result = await window.electronAPI.exportPDF({ html, options });
+          if (!result.success) {
+            console.error('Export failed:', result.error);
+          }
+          break;
+        }
+        
+        case 'docx': {
+          const buffer = await convertMarkdownToDocx(activeDoc.content);
+          const result = await window.electronAPI.exportDocx({ buffer, title });
+          if (!result.success) {
+            console.error('Export failed:', result.error);
+          }
+          break;
+        }
+        
+        case 'print': {
+          const html = await convertMarkdownToHTML(activeDoc.content, {
+            includeStyles: true,
+            includeHighlighting: true
+          });
+          const result = await window.electronAPI.print({ html });
+          if (!result.success) {
+            console.error('Print failed:', result.error);
+          }
+          break;
+        }
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+    }
+  }, [activeDoc]);
+  
+  // Assign to ref for use in event handlers
+  exportFunctionRef.current = handleExport;
 
   const shortcuts = useMemo(() => ({
     'cmd+b': () => handleFormat('bold'),
@@ -286,11 +356,14 @@ const App: React.FC = () => {
     'cmd+f': () => setShowFindReplace(true),
     'cmd+h': () => setShowFindReplace(true),
     'cmd+p': () => setShowQuickNav(true),
+    'cmd+shift+e': () => setShowExportDialog(true),
+    'cmd+shift+p': () => handleExport('print', { includeStyles: true, includeHighlighting: true }),
     'escape': () => {
       setShowFindReplace(false);
       setShowQuickNav(false);
+      setShowExportDialog(false);
     },
-  }), [handleFormat, showPreview, focusMode, showSidebar, handleNewTab, handleTabClose, activeDocId]);
+  }), [handleFormat, showPreview, focusMode, showSidebar, handleNewTab, handleTabClose, activeDocId, handleExport]);
 
   useKeyboardShortcuts(shortcuts);
 
@@ -307,6 +380,11 @@ const App: React.FC = () => {
   return (
     <AppContainer>
       <FocusMode isActive={focusMode} />
+      <ExportDialog
+        isVisible={showExportDialog}
+        onClose={() => setShowExportDialog(false)}
+        onExport={handleExport}
+      />
       <QuickNav
         isVisible={showQuickNav}
         content={activeDoc.content}
@@ -317,10 +395,11 @@ const App: React.FC = () => {
         onTogglePreview={() => setShowPreview(!showPreview)}
         showPreview={showPreview}
         onFormat={handleFormat}
+        onToggleSidebar={() => setShowSidebar(!showSidebar)}
+        showSidebar={showSidebar}
       />
       <MainContent>
-        <Sidebar
-          isCollapsed={!showSidebar}
+        <ResizableSidebar
           content={activeDoc.content}
           onNavigate={handleNavigate}
           recentFiles={recentFiles}
@@ -328,6 +407,10 @@ const App: React.FC = () => {
             // TODO: Load file from path
           }}
           selectedFile={activeDoc.path}
+          isCollapsed={!showSidebar}
+          onCollapsedChange={(collapsed) => setShowSidebar(!collapsed)}
+          defaultWidth={sidebarWidth}
+          onWidthChange={setSidebarWidth}
         />
         <EditorArea>
           <TabBar

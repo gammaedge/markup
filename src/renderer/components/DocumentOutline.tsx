@@ -2,25 +2,11 @@ import React, { useMemo } from 'react';
 import styled from 'styled-components';
 
 const OutlineContainer = styled.div`
-  width: 260px;
+  width: 100%;
   height: 100%;
+  display: flex;
+  flex-direction: column;
   background-color: var(--bg-secondary);
-  border-right: 1px solid var(--border-color);
-  overflow-y: auto;
-  flex-shrink: 0;
-  
-  &::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: 4px;
-  }
 `;
 
 const OutlineHeader = styled.div`
@@ -36,7 +22,22 @@ const OutlineHeader = styled.div`
 `;
 
 const OutlineContent = styled.div`
+  flex: 1;
   padding: 16px 0;
+  overflow-y: auto;
+  
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+  }
 `;
 
 const OutlineItem = styled.div<{ level: number; active?: boolean }>`

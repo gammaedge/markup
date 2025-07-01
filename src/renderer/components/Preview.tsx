@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { remark } from 'remark';
 import html from 'remark-html';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
@@ -209,6 +210,7 @@ const Preview: React.FC<PreviewProps> = ({ content }) => {
       const result = unified()
         .use(remarkParse)
         .use(remarkGfm)
+        .use(remarkMath)
         .use(remarkRehype, { allowDangerousHtml: true })
         .use(rehypeKatex)
         .use(rehypeStringify)

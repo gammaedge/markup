@@ -3,7 +3,7 @@ import styled from 'styled-components';
 import DocumentOutline from './DocumentOutline';
 
 const SidebarContainer = styled.div<{ $isCollapsed: boolean }>`
-  width: ${props => props.$isCollapsed ? '0' : '260px'};
+  width: ${props => props.$isCollapsed ? '0' : '100%'};
   height: 100%;
   background-color: var(--bg-secondary);
   border-right: 1px solid var(--border-color);
