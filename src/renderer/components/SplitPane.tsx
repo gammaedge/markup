@@ -16,26 +16,36 @@ const Pane = styled.div<{ width: string }>`
 `;
 
 const Resizer = styled.div<{ $isDragging: boolean }>`
-  width: 5px;
+  width: 1px;
   height: 100%;
-  background-color: ${props => props.$isDragging ? 'var(--accent-color)' : 'var(--border-color)'};
+  background-color: var(--border-color);
   cursor: col-resize;
   position: relative;
-  transition: background-color 0.2s ease;
+  transition: all var(--transition-fast);
   flex-shrink: 0;
-
-  &:hover {
-    background-color: var(--accent-color);
-  }
 
   &::before {
     content: '';
     position: absolute;
     top: 0;
-    left: -2px;
-    right: -2px;
+    left: -4px;
+    right: -4px;
     bottom: 0;
+    background-color: transparent;
+    transition: background-color var(--transition-fast);
   }
+
+  &:hover::before {
+    background-color: var(--accent-light);
+  }
+
+  ${props => props.$isDragging && `
+    background-color: var(--accent-color);
+    
+    &::before {
+      background-color: var(--accent-light);
+    }
+  `}
 `;
 
 interface SplitPaneProps {

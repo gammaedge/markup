@@ -18,12 +18,13 @@ const EditorContainer = styled.div<{ $fullWidth: boolean }>`
     font-size: 15px;
     
     .cm-content {
-      padding: 40px 60px;
+      padding: 60px 80px;
       font-family: 'SF Mono', Menlo, Monaco, 'Courier New', monospace;
-      line-height: 1.6;
-      max-width: 800px;
+      line-height: 1.8;
+      max-width: 760px;
       margin: 0 auto;
       width: 100%;
+      caret-color: var(--accent-color);
     }
 
     .cm-line {
@@ -43,13 +44,20 @@ const EditorContainer = styled.div<{ $fullWidth: boolean }>`
 
     .cm-cursor {
       border-left-color: var(--accent-color);
-      border-left-width: 2px;
+      border-left-width: 3px;
     }
 
     .cm-focused .cm-selectionBackground,
     ::selection {
-      background-color: var(--accent-color);
-      opacity: 0.3;
+      background-color: var(--accent-light);
+    }
+    
+    .cm-activeLine {
+      background-color: transparent;
+    }
+    
+    .cm-focused .cm-activeLine {
+      background-color: var(--bg-secondary);
     }
   }
 

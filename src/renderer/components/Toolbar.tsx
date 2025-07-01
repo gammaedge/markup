@@ -2,14 +2,16 @@ import React from 'react';
 import styled from 'styled-components';
 
 const ToolbarContainer = styled.div`
-  height: 52px;
+  height: 56px;
   background-color: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 24px;
   -webkit-app-region: drag;
-  padding-left: 80px;
+  padding-left: 88px;
+  z-index: 100;
+  box-shadow: var(--shadow-sm);
 `;
 
 const ToolbarSection = styled.div`
@@ -32,31 +34,39 @@ const ToolbarButtons = styled.div`
 `;
 
 const IconButton = styled.button<{ $active?: boolean }>`
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border: none;
-  background-color: ${props => props.$active ? 'var(--bg-tertiary)' : 'transparent'};
-  color: var(--text-primary);
-  border-radius: 6px;
+  background-color: ${props => props.$active ? 'var(--accent-light)' : 'transparent'};
+  color: ${props => props.$active ? 'var(--accent-color)' : 'var(--text-primary)'};
+  border-radius: 8px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast);
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
+  position: relative;
 
   &:hover {
-    background-color: var(--bg-tertiary);
+    background-color: ${props => props.$active ? 'var(--accent-light)' : 'var(--bg-hover)'};
+    transform: translateY(-1px);
   }
 
   &:active {
-    transform: scale(0.95);
+    transform: scale(0.96);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-glow);
   }
 
   svg {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
+    stroke-width: 2;
   }
 `;
 

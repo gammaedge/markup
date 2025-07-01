@@ -8,7 +8,8 @@ const PreviewContainer = styled.div`
   height: 100%;
   overflow-y: auto;
   background-color: var(--bg-primary);
-  padding: 40px 60px;
+  padding: 60px 80px;
+  scroll-behavior: smooth;
 
   &::-webkit-scrollbar {
     width: 8px;
@@ -29,12 +30,13 @@ const PreviewContainer = styled.div`
 `;
 
 const PreviewContent = styled.div`
-  max-width: 800px;
+  max-width: 760px;
   margin: 0 auto;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   font-size: 16px;
-  line-height: 1.7;
+  line-height: 1.8;
   color: var(--text-primary);
+  letter-spacing: -0.011em;
 
   h1, h2, h3, h4, h5, h6 {
     font-weight: 600;

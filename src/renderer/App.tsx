@@ -5,6 +5,7 @@ import Preview from './components/Preview';
 import Toolbar from './components/Toolbar';
 import StatusBar from './components/StatusBar';
 import SplitPane from './components/SplitPane';
+import FocusMode from './components/FocusMode';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
 const AppContainer = styled.div`
@@ -27,6 +28,7 @@ const App: React.FC = () => {
   const [showPreview, setShowPreview] = useState(true);
   const [isModified, setIsModified] = useState(false);
   const [splitPosition, setSplitPosition] = useState(50);
+  const [focusMode, setFocusMode] = useState(false);
   const editorRef = useRef<EditorHandle>(null);
 
   useEffect(() => {
@@ -106,7 +108,8 @@ const App: React.FC = () => {
     'cmd+2': () => handleFormat('heading', 2),
     'cmd+3': () => handleFormat('heading', 3),
     'cmd+/': () => setShowPreview(!showPreview),
-  }), [handleFormat, showPreview]);
+    'cmd+shift+f': () => setFocusMode(!focusMode),
+  }), [handleFormat, showPreview, focusMode]);
 
   useKeyboardShortcuts(shortcuts);
 
@@ -115,6 +118,7 @@ const App: React.FC = () => {
 
   return (
     <AppContainer>
+      <FocusMode isActive={focusMode} />
       <Toolbar 
         onTogglePreview={() => setShowPreview(!showPreview)}
         showPreview={showPreview}
