@@ -2,6 +2,12 @@ import React, { useMemo } from 'react';
 import styled from 'styled-components';
 import { remark } from 'remark';
 import html from 'remark-html';
+import remarkGfm from 'remark-gfm';
+import rehypeKatex from 'rehype-katex';
+import { unified } from 'unified';
+import remarkParse from 'remark-parse';
+import remarkRehype from 'remark-rehype';
+import rehypeStringify from 'rehype-stringify';
 
 const PreviewContainer = styled.div`
   flex: 1;
@@ -141,21 +147,29 @@ const PreviewContent = styled.div`
     border-collapse: collapse;
     margin-bottom: 16px;
     width: 100%;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
   }
 
   th, td {
     border: 1px solid var(--border-color);
-    padding: 8px 12px;
+    padding: 12px 16px;
     text-align: left;
   }
 
   th {
     background-color: var(--bg-secondary);
     font-weight: 600;
+    border-bottom: 2px solid var(--border-color);
   }
 
   tr:nth-child(even) {
     background-color: var(--bg-secondary);
+  }
+  
+  tr:hover {
+    background-color: var(--bg-hover);
   }
 
   img {
@@ -166,6 +180,22 @@ const PreviewContent = styled.div`
 
   input[type="checkbox"] {
     margin-right: 0.5em;
+    cursor: pointer;
+  }
+  
+  li.task-list-item {
+    list-style: none;
+    margin-left: -1.5em;
+  }
+  
+  .math {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  
+  .math-display {
+    margin: 16px 0;
+    text-align: center;
   }
 `;
 
@@ -176,8 +206,12 @@ interface PreviewProps {
 const Preview: React.FC<PreviewProps> = ({ content }) => {
   const htmlContent = useMemo(() => {
     try {
-      const result = remark()
-        .use(html, { allowDangerousHtml: true })
+      const result = unified()
+        .use(remarkParse)
+        .use(remarkGfm)
+        .use(remarkRehype, { allowDangerousHtml: true })
+        .use(rehypeKatex)
+        .use(rehypeStringify)
         .processSync(content);
       
       return result.toString();

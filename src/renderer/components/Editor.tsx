@@ -76,6 +76,8 @@ interface EditorProps {
 
 export interface EditorHandle {
   format: (action: string, value?: any) => void;
+  goToLine: (line: number) => void;
+  getCurrentLine: () => number;
 }
 
 const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, showPreview }, ref) => {
@@ -229,6 +231,27 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, showP
       }
       
       view.focus();
+    },
+    goToLine: (line: number) => {
+      if (!viewRef.current) return;
+      
+      const view = viewRef.current;
+      const doc = view.state.doc;
+      const lineInfo = doc.line(Math.min(line + 1, doc.lines));
+      
+      view.dispatch({
+        selection: { anchor: lineInfo.from, head: lineInfo.from },
+        scrollIntoView: true
+      });
+      
+      view.focus();
+    },
+    getCurrentLine: () => {
+      if (!viewRef.current) return 0;
+      
+      const view = viewRef.current;
+      const pos = view.state.selection.main.head;
+      return view.state.doc.lineAt(pos).number - 1;
     }
   }), []);
 
