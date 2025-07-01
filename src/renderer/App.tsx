@@ -4,6 +4,7 @@ import Editor, { EditorHandle } from './components/Editor';
 import Preview from './components/Preview';
 import Toolbar from './components/Toolbar';
 import StatusBar from './components/StatusBar';
+import SplitPane from './components/SplitPane';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
 const AppContainer = styled.div`
@@ -25,6 +26,7 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [showPreview, setShowPreview] = useState(true);
   const [isModified, setIsModified] = useState(false);
+  const [splitPosition, setSplitPosition] = useState(50);
   const editorRef = useRef<EditorHandle>(null);
 
   useEffect(() => {
@@ -119,13 +121,29 @@ const App: React.FC = () => {
         onFormat={handleFormat}
       />
       <MainContent>
-        <Editor 
-          ref={editorRef}
-          content={content} 
-          onChange={handleContentChange}
-          showPreview={showPreview}
-        />
-        {showPreview && <Preview content={content} />}
+        {showPreview ? (
+          <SplitPane 
+            defaultSplit={splitPosition} 
+            minSize={300} 
+            maxSize={70}
+            onSplitChange={setSplitPosition}
+          >
+            <Editor 
+              ref={editorRef}
+              content={content} 
+              onChange={handleContentChange}
+              showPreview={showPreview}
+            />
+            <Preview content={content} />
+          </SplitPane>
+        ) : (
+          <Editor 
+            ref={editorRef}
+            content={content} 
+            onChange={handleContentChange}
+            showPreview={showPreview}
+          />
+        )}
       </MainContent>
       <StatusBar 
         filePath={currentFile}

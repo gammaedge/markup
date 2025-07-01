@@ -7,13 +7,11 @@ import { oneDark } from '@codemirror/theme-one-dark';
 import { ViewUpdate } from '@codemirror/view';
 
 const EditorContainer = styled.div<{ $fullWidth: boolean }>`
-  flex: ${props => props.$fullWidth ? '1' : '0 0 50%'};
+  flex: 1;
   height: 100%;
   display: flex;
   flex-direction: column;
   background-color: var(--bg-primary);
-  border-right: ${props => props.$fullWidth ? 'none' : '1px solid var(--border-color)'};
-  transition: flex 0.3s ease;
 
   .cm-editor {
     height: 100%;

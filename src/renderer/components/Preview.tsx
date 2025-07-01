@@ -4,7 +4,7 @@ import { remark } from 'remark';
 import html from 'remark-html';
 
 const PreviewContainer = styled.div`
-  flex: 0 0 50%;
+  flex: 1;
   height: 100%;
   overflow-y: auto;
   background-color: var(--bg-primary);
