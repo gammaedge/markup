@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import styled from 'styled-components';
-import Editor from './components/Editor';
+import Editor, { EditorHandle } from './components/Editor';
 import Preview from './components/Preview';
 import Toolbar from './components/Toolbar';
 import StatusBar from './components/StatusBar';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
 const AppContainer = styled.div`
   display: flex;
@@ -24,6 +25,7 @@ const App: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [showPreview, setShowPreview] = useState(true);
   const [isModified, setIsModified] = useState(false);
+  const editorRef = useRef<EditorHandle>(null);
 
   useEffect(() => {
     window.electronAPI.getTheme().then((theme) => {
@@ -85,6 +87,27 @@ const App: React.FC = () => {
     }
   };
 
+  const handleFormat = useCallback((action: string, value?: any) => {
+    editorRef.current?.format(action, value);
+  }, []);
+
+  const shortcuts = useMemo(() => ({
+    'cmd+b': () => handleFormat('bold'),
+    'cmd+i': () => handleFormat('italic'),
+    'cmd+k': () => handleFormat('link'),
+    'cmd+e': () => handleFormat('code'),
+    'cmd+shift+c': () => handleFormat('codeBlock'),
+    'cmd+shift+.': () => handleFormat('quote'),
+    'cmd+shift+7': () => handleFormat('orderedList'),
+    'cmd+shift+8': () => handleFormat('unorderedList'),
+    'cmd+1': () => handleFormat('heading', 1),
+    'cmd+2': () => handleFormat('heading', 2),
+    'cmd+3': () => handleFormat('heading', 3),
+    'cmd+/': () => setShowPreview(!showPreview),
+  }), [handleFormat, showPreview]);
+
+  useKeyboardShortcuts(shortcuts);
+
   const wordCount = content.trim().split(/\s+/).filter(word => word.length > 0).length;
   const charCount = content.length;
 
@@ -93,9 +116,11 @@ const App: React.FC = () => {
       <Toolbar 
         onTogglePreview={() => setShowPreview(!showPreview)}
         showPreview={showPreview}
+        onFormat={handleFormat}
       />
       <MainContent>
         <Editor 
+          ref={editorRef}
           content={content} 
           onChange={handleContentChange}
           showPreview={showPreview}

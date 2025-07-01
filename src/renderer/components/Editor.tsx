@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import styled from 'styled-components';
 import { EditorView, basicSetup } from 'codemirror';
 import { EditorState, Compartment } from '@codemirror/state';
@@ -68,7 +68,11 @@ interface EditorProps {
   showPreview: boolean;
 }
 
-const Editor: React.FC<EditorProps> = ({ content, onChange, showPreview }) => {
+export interface EditorHandle {
+  format: (action: string, value?: any) => void;
+}
+
+const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, showPreview }, ref) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const themeConfig = useRef(new Compartment());
@@ -149,9 +153,84 @@ const Editor: React.FC<EditorProps> = ({ content, onChange, showPreview }) => {
     return () => observer.disconnect();
   }, []);
 
+  useImperativeHandle(ref, () => ({
+    format: (action: string, value?: any) => {
+      if (!viewRef.current) return;
+      
+      const view = viewRef.current;
+      const { from, to } = view.state.selection.main;
+      const selectedText = view.state.doc.sliceString(from, to);
+      
+      const wrapSelection = (before: string, after: string = before) => {
+        const text = selectedText || 'text';
+        view.dispatch({
+          changes: { from, to, insert: `${before}${text}${after}` },
+          selection: { anchor: from + before.length + text.length + after.length }
+        });
+      };
+
+      const prefixLine = (prefix: string) => {
+        const line = view.state.doc.lineAt(from);
+        const lineText = view.state.doc.sliceString(line.from, line.to);
+        const newText = lineText.startsWith(prefix)
+          ? lineText.slice(prefix.length)
+          : prefix + lineText;
+        view.dispatch({
+          changes: { from: line.from, to: line.to, insert: newText }
+        });
+      };
+
+      switch (action) {
+        case 'bold':
+          wrapSelection('**');
+          break;
+        case 'italic':
+          wrapSelection('*');
+          break;
+        case 'strikethrough':
+          wrapSelection('~~');
+          break;
+        case 'heading':
+          prefixLine('#'.repeat(value || 1) + ' ');
+          break;
+        case 'link':
+          view.dispatch({
+            changes: { from, to, insert: `[${selectedText || 'link text'}](url)` }
+          });
+          break;
+        case 'code':
+          wrapSelection('`');
+          break;
+        case 'codeBlock':
+          view.dispatch({
+            changes: { from, to, insert: `\`\`\`\n${selectedText || 'code'}\n\`\`\`` }
+          });
+          break;
+        case 'quote':
+          prefixLine('> ');
+          break;
+        case 'orderedList':
+          prefixLine('1. ');
+          break;
+        case 'unorderedList':
+          prefixLine('- ');
+          break;
+        case 'horizontalRule':
+          view.dispatch({
+            changes: { from, to, insert: '\n---\n' }
+          });
+          break;
+      }
+      
+      view.focus();
+    }
+  }), []);
+
   return (
     <EditorContainer ref={editorRef} $fullWidth={!showPreview} />
   );
-};
+});
+
+Editor.displayName = 'Editor';
 
 export default Editor;
