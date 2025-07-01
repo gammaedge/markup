@@ -90,27 +90,33 @@ const App: React.FC = () => {
     });
 
     window.electronAPI.onFileOpened(({ filePath, content }) => {
-      const existingDoc = documents.find(doc => doc.path === filePath);
-      if (existingDoc) {
-        setActiveDocId(existingDoc.id);
-      } else {
-        const newDoc: Document = {
-          id: String(nextDocId.current++),
-          content,
-          path: filePath,
-          title: filePath.split('/').pop() || 'Unknown',
-          isModified: false
-        };
-        setDocuments([...documents, newDoc]);
-        setActiveDocId(newDoc.id);
-      }
+      setDocuments(prevDocs => {
+        const existingDoc = prevDocs.find(doc => doc.path === filePath);
+        if (existingDoc) {
+          setActiveDocId(existingDoc.id);
+          return prevDocs;
+        } else {
+          const newDoc: Document = {
+            id: String(nextDocId.current++),
+            content,
+            path: filePath,
+            title: filePath.split('/').pop() || 'Unknown',
+            isModified: false
+          };
+          setActiveDocId(newDoc.id);
+          return [...prevDocs, newDoc];
+        }
+      });
       
-      if (!recentFiles.find(f => f.path === filePath)) {
-        setRecentFiles([...recentFiles, { 
-          path: filePath, 
-          name: filePath.split('/').pop() || 'Unknown' 
-        }]);
-      }
+      setRecentFiles(prevFiles => {
+        if (!prevFiles.find(f => f.path === filePath)) {
+          return [...prevFiles, { 
+            path: filePath, 
+            name: filePath.split('/').pop() || 'Unknown' 
+          }];
+        }
+        return prevFiles;
+      });
     });
 
     window.electronAPI.onFileSave(() => {
@@ -189,22 +195,25 @@ const App: React.FC = () => {
       title: `Untitled-${nextDocId.current - 1}.md`,
       isModified: false
     };
-    setDocuments([...documents, newDoc]);
+    setDocuments(prevDocs => [...prevDocs, newDoc]);
     setActiveDocId(newDoc.id);
-  }, [documents]);
+  }, []);
   
   const handleTabClose = useCallback((id: string) => {
-    if (documents.length <= 1) return;
-    
-    const docIndex = documents.findIndex(doc => doc.id === id);
-    const newDocs = documents.filter(doc => doc.id !== id);
-    setDocuments(newDocs);
-    
-    if (id === activeDocId) {
-      const newActiveIndex = Math.max(0, docIndex - 1);
-      setActiveDocId(newDocs[newActiveIndex].id);
-    }
-  }, [documents, activeDocId]);
+    setDocuments(prevDocs => {
+      if (prevDocs.length <= 1) return prevDocs;
+      
+      const docIndex = prevDocs.findIndex(doc => doc.id === id);
+      const newDocs = prevDocs.filter(doc => doc.id !== id);
+      
+      if (id === activeDocId) {
+        const newActiveIndex = Math.max(0, docIndex - 1);
+        setActiveDocId(newDocs[newActiveIndex].id);
+      }
+      
+      return newDocs;
+    });
+  }, [activeDocId]);
 
   const handleSave = async () => {
     const result = await window.electronAPI.saveFile({
@@ -350,6 +359,7 @@ const App: React.FC = () => {
                 onSplitChange={setSplitPosition}
               >
                 <Editor 
+                  key={activeDocId}
                   ref={editorRef}
                   content={activeDoc.content} 
                   onChange={handleContentChange}
@@ -359,6 +369,7 @@ const App: React.FC = () => {
               </SplitPane>
             ) : (
               <Editor 
+                key={activeDocId}
                 ref={editorRef}
                 content={activeDoc.content} 
                 onChange={handleContentChange}

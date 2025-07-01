@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import styled from 'styled-components';
 import { EditorView, basicSetup } from 'codemirror';
-import { EditorState, Compartment } from '@codemirror/state';
+import { EditorState, Compartment, Transaction, Annotation } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { ViewUpdate } from '@codemirror/view';
@@ -84,6 +84,8 @@ export interface EditorHandle {
   navigateFind: (direction: 'next' | 'prev') => void;
 }
 
+const remoteTransaction = Annotation.define<boolean>();
+
 const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, showPreview }, ref) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -102,7 +104,7 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, showP
         markdown(),
         themeConfig.current.of(isDark ? oneDark : []),
         EditorView.updateListener.of((update: ViewUpdate) => {
-          if (update.docChanged) {
+          if (update.docChanged && !update.transactions.some(tr => tr.annotation(remoteTransaction))) {
             onChange(update.state.doc.toString());
           }
         }),
@@ -135,12 +137,15 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, showP
 
   useEffect(() => {
     if (viewRef.current && content !== viewRef.current.state.doc.toString()) {
-      viewRef.current.dispatch({
+      const view = viewRef.current;
+      view.dispatch({
         changes: {
           from: 0,
-          to: viewRef.current.state.doc.length,
+          to: view.state.doc.length,
           insert: content,
         },
+        selection: { anchor: 0 },
+        annotations: [remoteTransaction.of(true)]
       });
     }
   }, [content]);
