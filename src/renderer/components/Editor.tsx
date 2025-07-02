@@ -4,7 +4,8 @@ import { EditorView, basicSetup } from 'codemirror';
 import { EditorState, Compartment, Transaction, Annotation } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
 import { oneDark } from '@codemirror/theme-one-dark';
-import { ViewUpdate } from '@codemirror/view';
+import { ViewUpdate, keymap } from '@codemirror/view';
+import { defaultKeymap, indentWithTab, insertNewlineAndIndent } from '@codemirror/commands';
 import TableEditor from './TableEditor';
 
 const EditorContainer = styled.div<{ $fullWidth: boolean }>`
@@ -18,6 +19,10 @@ const EditorContainer = styled.div<{ $fullWidth: boolean }>`
     height: 100%;
     font-size: 15px;
     
+    &.cm-focused {
+      outline: none;
+    }
+    
     .cm-content {
       padding: 40px 40px;
       font-family: 'SF Mono', Menlo, Monaco, 'Courier New', monospace;
@@ -26,6 +31,7 @@ const EditorContainer = styled.div<{ $fullWidth: boolean }>`
       margin: 0 auto;
       width: 100%;
       caret-color: var(--accent-color);
+      min-height: 100%;
     }
 
     .cm-line {
@@ -92,9 +98,17 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, showP
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const themeConfig = useRef(new Compartment());
+  const onChangeRef = useRef(onChange);
+  const onSelectionChangeRef = useRef(onSelectionChange);
   const [showTableEditor, setShowTableEditor] = useState(false);
   const [tableEditorPosition, setTableEditorPosition] = useState({ top: 0, left: 0 });
   const [tableSelection, setTableSelection] = useState<{ content: string; rows: number; cols: number } | undefined>();
+  
+  // Update refs to avoid recreating editor
+  useEffect(() => {
+    onChangeRef.current = onChange;
+    onSelectionChangeRef.current = onSelectionChange;
+  }, [onChange, onSelectionChange]);
 
   useEffect(() => {
     if (!editorRef.current) return;
@@ -107,19 +121,24 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, showP
       extensions: [
         basicSetup,
         markdown(),
+        keymap.of([
+          ...defaultKeymap,
+          indentWithTab,
+          { key: 'Enter', run: insertNewlineAndIndent }
+        ]),
         themeConfig.current.of(isDark ? oneDark : []),
         EditorView.updateListener.of((update: ViewUpdate) => {
           if (update.docChanged && !update.transactions.some(tr => tr.annotation(remoteTransaction))) {
-            onChange(update.state.doc.toString());
+            onChangeRef.current(update.state.doc.toString());
           }
           
-          if (update.selectionSet && onSelectionChange) {
+          if (update.selectionSet && onSelectionChangeRef.current) {
             const { from, to } = update.state.selection.main;
             if (from !== to) {
               const text = update.state.doc.sliceString(from, to);
-              onSelectionChange({ start: from, end: to, text });
+              onSelectionChangeRef.current({ start: from, end: to, text });
             } else {
-              onSelectionChange(null);
+              onSelectionChangeRef.current(null);
             }
           }
         }),
@@ -144,22 +163,26 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, showP
     });
 
     viewRef.current = view;
+    
+    // Focus the editor on mount
+    setTimeout(() => view.focus(), 100);
 
     return () => {
       view.destroy();
     };
-  }, [onSelectionChange]);
+  }, []); // Empty dependency array - create editor only once
 
   useEffect(() => {
     if (viewRef.current && content !== viewRef.current.state.doc.toString()) {
       const view = viewRef.current;
+      const currentPos = view.state.selection.main.head;
       view.dispatch({
         changes: {
           from: 0,
           to: view.state.doc.length,
           insert: content,
         },
-        selection: { anchor: 0 },
+        selection: { anchor: Math.min(currentPos, content.length) },
         annotations: [remoteTransaction.of(true)]
       });
     }
