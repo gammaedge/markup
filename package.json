@@ -1,5 +1,5 @@
 {
-  "name": "elegant-markdown-editor",
+  "name": "markup",
   "version": "1.0.0",
   "main": "dist/main/main.js",
   "scripts": {
@@ -10,13 +10,13 @@
     "dist": "npm run build && electron-builder",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["markdown", "editor", "electron", "macos"],
-  "author": "Your Name",
+  "keywords": ["markdown", "editor", "electron", "macos", "markup"],
+  "author": "GammaEdge.io",
   "license": "MIT",
   "description": "A powerful, feature-rich Markdown editor for macOS",
   "build": {
-    "appId": "com.yourcompany.elegant-markdown-editor",
-    "productName": "Elegant Markdown Editor",
+    "appId": "io.gammaedge.markup",
+    "productName": "Markup",
     "directories": {
       "output": "release"
     },

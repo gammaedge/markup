@@ -1,6 +1,8 @@
-# Elegant Markdown Editor
+# Markup
 
-A powerful, feature-rich Markdown editor for macOS built with Electron. Experience a native macOS interface with advanced editing capabilities, real-time preview, and comprehensive markdown support.
+A powerful, feature-rich Markdown editor for macOS built by [GammaEdge.io](https://gammaedge.io). Experience a native macOS interface with advanced editing capabilities, real-time preview, and comprehensive markdown support.
+
+For questions, feature requests, or contributions, please contact us at: **opensource@gammaedge.io**
 
 ## 🌟 Features
 
@@ -183,6 +185,8 @@ We welcome contributions! Please follow these steps:
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
+For any questions or discussions about contributions, please contact us at **opensource@gammaedge.io**
+
 ### Development Guidelines
 - Follow the existing code style
 - Write meaningful commit messages
@@ -211,10 +215,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/elegant-markdown-editor/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/elegant-markdown-editor/discussions)
-- **Email**: support@elegantmarkdown.app
+- **Email**: opensource@gammaedge.io
+- **Website**: [GammaEdge.io](https://gammaedge.io)
 
 ---
 
-Made with ❤️ by the Elegant Markdown Editor team
+Made with ❤️ by [GammaEdge.io](https://gammaedge.io)

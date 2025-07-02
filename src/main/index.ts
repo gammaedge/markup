@@ -38,7 +38,7 @@ function createWindow(): void {
 function createAppMenu(): void {
   const template: any[] = [
     {
-      label: 'Elegant Editor',
+      label: 'Markup',
       submenu: [
         { role: 'about' },
         { type: 'separator' },
