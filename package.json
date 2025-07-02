@@ -24,6 +24,7 @@
     "directories": {
       "output": "release"
     },
+    "publish": null,
     "mac": {
       "category": "public.app-category.productivity",
       "icon": "build/icon.png",
