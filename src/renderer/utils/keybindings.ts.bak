@@ -1,0 +1,220 @@
+import { keymap } from '@codemirror/view';
+import { EditorState, Extension } from '@codemirror/state';
+import { 
+  selectLine, selectAll, cursorLineStart, cursorLineEnd,
+  cursorDocStart, cursorDocEnd, deleteCharBackward, deleteCharForward,
+  deleteGroupBackward, deleteGroupForward, deleteLine,
+  moveLineUp, moveLineDown, copyLineUp, copyLineDown,
+  cursorCharLeft, cursorCharRight, cursorLineUp, cursorLineDown,
+  cursorGroupLeft, cursorGroupRight, selectGroupLeft, selectGroupRight,
+  selectCharLeft, selectCharRight, selectLineUp, selectLineDown,
+  undo, redo, indentSelection, indentLess, indentMore,
+  insertNewlineAndIndent, cursorPageUp, cursorPageDown,
+  selectPageUp, selectPageDown, cursorLineBoundaryForward, cursorLineBoundaryBackward
+} from '@codemirror/commands';
+
+export type KeybindingMode = 'default' | 'vim' | 'emacs';
+
+// Vim normal mode keybindings
+const vimNormalKeymap = keymap.of([
+  // Movement
+  { key: 'h', run: cursorCharLeft },
+  { key: 'j', run: cursorLineDown },
+  { key: 'k', run: cursorLineUp },
+  { key: 'l', run: cursorCharRight },
+  { key: 'w', run: cursorGroupRight },
+  { key: 'b', run: cursorGroupLeft },
+  { key: '0', run: cursorLineStart },
+  { key: '$', run: cursorLineEnd },
+  { key: 'g g', run: cursorDocStart },
+  { key: 'G', run: cursorDocEnd },
+  { key: 'Ctrl-f', run: cursorPageDown },
+  { key: 'Ctrl-b', run: cursorPageUp },
+  
+  // Deletion
+  { key: 'x', run: deleteCharForward },
+  { key: 'd d', run: deleteLine },
+  
+  // Undo/Redo
+  { key: 'u', run: undo },
+  { key: 'Ctrl-r', run: redo },
+  
+  // Visual mode simulation
+  { key: 'v h', run: selectCharLeft },
+  { key: 'v j', run: selectLineDown },
+  { key: 'v k', run: selectLineUp },
+  { key: 'v l', run: selectCharRight },
+  { key: 'V', run: selectLine },
+  { key: 'v w', run: selectGroupRight },
+  { key: 'v b', run: selectGroupLeft },
+  
+  // Indentation
+  { key: '>', run: indentMore },
+  { key: '<', run: indentLess },
+]);
+
+// Emacs keybindings
+const emacsKeymap = keymap.of([
+  // Movement
+  { key: 'Ctrl-f', run: cursorCharRight },
+  { key: 'Ctrl-b', run: cursorCharLeft },
+  { key: 'Ctrl-p', run: cursorLineUp },
+  { key: 'Ctrl-n', run: cursorLineDown },
+  { key: 'Alt-f', run: cursorGroupRight },
+  { key: 'Alt-b', run: cursorGroupLeft },
+  { key: 'Ctrl-a', run: cursorLineStart },
+  { key: 'Ctrl-e', run: cursorLineEnd },
+  { key: 'Alt-<', run: cursorDocStart },
+  { key: 'Alt->', run: cursorDocEnd },
+  { key: 'Ctrl-v', run: cursorPageDown },
+  { key: 'Alt-v', run: cursorPageUp },
+  
+  // Deletion
+  { key: 'Ctrl-d', run: deleteCharForward },
+  { key: 'Ctrl-h', run: deleteCharBackward },
+  { key: 'Alt-d', run: deleteGroupForward },
+  { key: 'Alt-Backspace', run: deleteGroupBackward },
+  { key: 'Ctrl-k', run: (view) => {
+    const pos = view.state.selection.main.head;
+    const line = view.state.doc.lineAt(pos);
+    view.dispatch({
+      changes: { from: pos, to: line.to }
+    });
+    return true;
+  }},
+  
+  // Selection
+  { key: 'Ctrl-Space', run: (view) => {
+    // Set mark
+    view.dispatch({
+      selection: { anchor: view.state.selection.main.head }
+    });
+    return true;
+  }},
+  { key: 'Ctrl-x h', run: selectAll },
+  
+  // Line operations
+  { key: 'Ctrl-Alt-n', run: moveLineDown },
+  { key: 'Ctrl-Alt-p', run: moveLineUp },
+  
+  // Undo/Redo
+  { key: 'Ctrl-/', run: undo },
+  { key: 'Ctrl-_', run: undo },
+  { key: 'Ctrl-x u', run: undo },
+]);
+
+// Enhanced default keybindings
+const enhancedDefaultKeymap = keymap.of([
+  // Multiple cursors
+  { key: 'Alt-Click', run: (view, event) => {
+    if (event instanceof MouseEvent) {
+      const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+      if (pos !== null) {
+        const selection = view.state.selection;
+        const newSelection = selection.addRange({ anchor: pos, head: pos });
+        view.dispatch({ selection: newSelection });
+        return true;
+      }
+    }
+    return false;
+  }},
+  { key: 'Ctrl-Alt-Up', run: (view) => {
+    const selection = view.state.selection;
+    const line = view.state.doc.lineAt(selection.main.head);
+    if (line.number > 1) {
+      const prevLine = view.state.doc.line(line.number - 1);
+      const pos = Math.min(prevLine.from + (selection.main.head - line.from), prevLine.to);
+      const newSelection = selection.addRange({ anchor: pos, head: pos });
+      view.dispatch({ selection: newSelection });
+    }
+    return true;
+  }},
+  { key: 'Ctrl-Alt-Down', run: (view) => {
+    const selection = view.state.selection;
+    const line = view.state.doc.lineAt(selection.main.head);
+    if (line.number < view.state.doc.lines) {
+      const nextLine = view.state.doc.line(line.number + 1);
+      const pos = Math.min(nextLine.from + (selection.main.head - line.from), nextLine.to);
+      const newSelection = selection.addRange({ anchor: pos, head: pos });
+      view.dispatch({ selection: newSelection });
+    }
+    return true;
+  }},
+  
+  // Duplicate line
+  { key: 'Shift-Alt-Down', run: copyLineDown },
+  { key: 'Shift-Alt-Up', run: copyLineUp },
+  
+  // Move line
+  { key: 'Alt-Up', run: moveLineUp },
+  { key: 'Alt-Down', run: moveLineDown },
+]);
+
+export function getKeybindings(mode: KeybindingMode): Extension[] {
+  switch (mode) {
+    case 'vim':
+      return [vimNormalKeymap, enhancedDefaultKeymap];
+    case 'emacs':
+      return [emacsKeymap, enhancedDefaultKeymap];
+    default:
+      return [enhancedDefaultKeymap];
+  }
+}
+
+// Smart list continuation
+export const smartListContinuation = EditorState.transactionFilter.of(tr => {
+  if (!tr.isUserEvent('input.type') || !tr.newDoc.iter().next().value.includes('\n')) {
+    return tr;
+  }
+  
+  const selection = tr.newSelection.main;
+  const line = tr.startState.doc.lineAt(selection.from);
+  const lineText = tr.startState.doc.sliceString(line.from, line.to);
+  
+  // Check for list patterns
+  const unorderedMatch = lineText.match(/^(\s*)([-*+])\s+(\[.\]\s+)?/);
+  const orderedMatch = lineText.match(/^(\s*)(\d+)\.\s+/);
+  
+  if (unorderedMatch) {
+    const [fullMatch, indent, marker, checkbox] = unorderedMatch;
+    const restText = lineText.slice(fullMatch.length);
+    
+    if (restText.trim() === '') {
+      // Empty list item - remove it
+      return [{
+        changes: { from: line.from, to: selection.to },
+        selection: { anchor: line.from }
+      }];
+    } else {
+      // Continue list
+      const prefix = checkbox ? `${indent}${marker} [ ] ` : `${indent}${marker} `;
+      return [{
+        ...tr,
+        changes: { from: selection.from, to: selection.to, insert: `\n${prefix}` },
+        selection: { anchor: selection.from + prefix.length + 1 }
+      }];
+    }
+  } else if (orderedMatch) {
+    const [fullMatch, indent, number] = orderedMatch;
+    const restText = lineText.slice(fullMatch.length);
+    
+    if (restText.trim() === '') {
+      // Empty list item - remove it
+      return [{
+        changes: { from: line.from, to: selection.to },
+        selection: { anchor: line.from }
+      }];
+    } else {
+      // Continue numbered list
+      const nextNumber = parseInt(number) + 1;
+      const prefix = `${indent}${nextNumber}. `;
+      return [{
+        ...tr,
+        changes: { from: selection.from, to: selection.to, insert: `\n${prefix}` },
+        selection: { anchor: selection.from + prefix.length + 1 }
+      }];
+    }
+  }
+  
+  return tr;
+});

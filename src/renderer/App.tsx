@@ -12,6 +12,8 @@ import FindReplace from './components/FindReplace';
 import Breadcrumb from './components/Breadcrumb';
 import QuickNav from './components/QuickNav';
 import ExportDialog, { ExportFormat } from './components/ExportDialog';
+import Comments, { CommentData } from './components/Comments';
+import Settings, { SettingsData } from './components/Settings';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { convertMarkdownToHTML, convertMarkdownToDocx } from './utils/export';
 
@@ -71,9 +73,27 @@ const App: React.FC = () => {
   const [showFindReplace, setShowFindReplace] = useState(false);
   const [showQuickNav, setShowQuickNav] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [currentLine, setCurrentLine] = useState(0);
+  const [currentSelection, setCurrentSelection] = useState<{ start: number; end: number; text: string } | undefined>();
+  const [comments, setComments] = useState<CommentData[]>([]);
+  const [settings, setSettings] = useState<SettingsData>({
+    keybindingMode: 'default',
+    autoSave: autoSaveEnabled,
+    fontSize: 15,
+    tabSize: 2,
+    wordWrap: false,
+    showLineNumbers: true,
+    highlightActiveLine: true,
+    foldGutter: true,
+    vim: {
+      insertModeOnNew: true,
+      relativeLineNumbers: false
+    }
+  });
   const editorRef = useRef<EditorHandle>(null);
   const nextDocId = useRef(2);
+  const nextCommentId = useRef(1);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const exportFunctionRef = useRef<any>(null);
   
@@ -335,6 +355,23 @@ const App: React.FC = () => {
   
   // Assign to ref for use in event handlers
   exportFunctionRef.current = handleExport;
+  
+  const handleAddComment = useCallback((comment: Omit<CommentData, 'id'>) => {
+    const newComment: CommentData = {
+      ...comment,
+      id: String(nextCommentId.current++)
+    };
+    setComments(prev => [...prev, newComment]);
+  }, []);
+  
+  const handleDeleteComment = useCallback((id: string) => {
+    setComments(prev => prev.filter(c => c.id !== id));
+  }, []);
+  
+  const handleSettingsChange = useCallback((newSettings: SettingsData) => {
+    setSettings(newSettings);
+    setAutoSaveEnabled(newSettings.autoSave);
+  }, []);
 
   const shortcuts = useMemo(() => ({
     'cmd+b': () => handleFormat('bold'),
@@ -358,10 +395,12 @@ const App: React.FC = () => {
     'cmd+p': () => setShowQuickNav(true),
     'cmd+shift+e': () => setShowExportDialog(true),
     'cmd+shift+p': () => handleExport('print', { includeStyles: true, includeHighlighting: true }),
+    'cmd+,': () => setShowSettings(true),
     'escape': () => {
       setShowFindReplace(false);
       setShowQuickNav(false);
       setShowExportDialog(false);
+      setShowSettings(false);
     },
   }), [handleFormat, showPreview, focusMode, showSidebar, handleNewTab, handleTabClose, activeDocId, handleExport]);
 
@@ -390,6 +429,18 @@ const App: React.FC = () => {
         content={activeDoc.content}
         onClose={() => setShowQuickNav(false)}
         onNavigate={handleNavigate}
+      />
+      <Settings
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        settings={settings}
+        onSettingsChange={handleSettingsChange}
+      />
+      <Comments
+        comments={comments.filter(c => !c.selection || (activeDoc.content.includes(c.selection.text)))}
+        onAddComment={handleAddComment}
+        onDeleteComment={handleDeleteComment}
+        currentSelection={currentSelection}
       />
       <Toolbar 
         onTogglePreview={() => setShowPreview(!showPreview)}
@@ -447,6 +498,7 @@ const App: React.FC = () => {
                   content={activeDoc.content} 
                   onChange={handleContentChange}
                   showPreview={showPreview}
+                  onSelectionChange={(selection) => setCurrentSelection(selection || undefined)}
                 />
                 <Preview content={activeDoc.content} />
               </SplitPane>
@@ -457,6 +509,7 @@ const App: React.FC = () => {
                 content={activeDoc.content} 
                 onChange={handleContentChange}
                 showPreview={showPreview}
+                onSelectionChange={(selection) => setCurrentSelection(selection || undefined)}
               />
             )}
           </ContentArea>

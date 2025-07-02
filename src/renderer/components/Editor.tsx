@@ -1,10 +1,11 @@
-import React, { useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
+import React, { useEffect, useRef, useImperativeHandle, forwardRef, useState, useCallback } from 'react';
 import styled from 'styled-components';
 import { EditorView, basicSetup } from 'codemirror';
 import { EditorState, Compartment, Transaction, Annotation } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { ViewUpdate } from '@codemirror/view';
+import TableEditor from './TableEditor';
 
 const EditorContainer = styled.div<{ $fullWidth: boolean }>`
   flex: 1;
@@ -72,6 +73,7 @@ interface EditorProps {
   content: string;
   onChange: (content: string) => void;
   showPreview: boolean;
+  onSelectionChange?: (selection: { start: number; end: number; text: string } | null) => void;
 }
 
 export interface EditorHandle {
@@ -86,10 +88,13 @@ export interface EditorHandle {
 
 const remoteTransaction = Annotation.define<boolean>();
 
-const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, showPreview }, ref) => {
+const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, showPreview, onSelectionChange }, ref) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const themeConfig = useRef(new Compartment());
+  const [showTableEditor, setShowTableEditor] = useState(false);
+  const [tableEditorPosition, setTableEditorPosition] = useState({ top: 0, left: 0 });
+  const [tableSelection, setTableSelection] = useState<{ content: string; rows: number; cols: number } | undefined>();
 
   useEffect(() => {
     if (!editorRef.current) return;
@@ -106,6 +111,16 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, showP
         EditorView.updateListener.of((update: ViewUpdate) => {
           if (update.docChanged && !update.transactions.some(tr => tr.annotation(remoteTransaction))) {
             onChange(update.state.doc.toString());
+          }
+          
+          if (update.selectionSet && onSelectionChange) {
+            const { from, to } = update.state.selection.main;
+            if (from !== to) {
+              const text = update.state.doc.sliceString(from, to);
+              onSelectionChange({ start: from, end: to, text });
+            } else {
+              onSelectionChange(null);
+            }
           }
         }),
         EditorView.theme({
@@ -133,7 +148,7 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, showP
     return () => {
       view.destroy();
     };
-  }, []);
+  }, [onSelectionChange]);
 
   useEffect(() => {
     if (viewRef.current && content !== viewRef.current.state.doc.toString()) {
@@ -168,6 +183,20 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, showP
     });
 
     return () => observer.disconnect();
+  }, []);
+  
+  const handleTableInsert = useCallback((markdown: string) => {
+    if (!viewRef.current) return;
+    
+    const view = viewRef.current;
+    const { from, to } = view.state.selection.main;
+    
+    view.dispatch({
+      changes: { from, to, insert: markdown },
+      selection: { anchor: from + markdown.length }
+    });
+    
+    view.focus();
   }, []);
 
   useImperativeHandle(ref, () => ({
@@ -236,6 +265,64 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, showP
           view.dispatch({
             changes: { from, to, insert: '\n---\n' }
           });
+          break;
+        case 'table':
+          const coords = view.coordsAtPos(from);
+          if (coords) {
+            const editorRect = view.dom.getBoundingClientRect();
+            setTableEditorPosition({
+              top: coords.top - editorRect.top + 20,
+              left: coords.left - editorRect.left
+            });
+            
+            // Check if we're inside an existing table
+            const line = view.state.doc.lineAt(from);
+            let tableStart = -1;
+            let tableEnd = -1;
+            let isInTable = false;
+            
+            // Look backwards for table start
+            for (let i = line.number; i >= 1; i--) {
+              const lineText = view.state.doc.line(i).text;
+              if (lineText.includes('|')) {
+                if (tableStart === -1) tableStart = i;
+              } else if (tableStart !== -1) {
+                break;
+              }
+            }
+            
+            // Look forwards for table end
+            for (let i = line.number; i <= view.state.doc.lines; i++) {
+              const lineText = view.state.doc.line(i).text;
+              if (lineText.includes('|')) {
+                tableEnd = i;
+                if (i === line.number) isInTable = true;
+              } else if (tableEnd !== -1) {
+                break;
+              }
+            }
+            
+            if (isInTable && tableStart !== -1 && tableEnd !== -1) {
+              // Extract existing table
+              const tableLines = [];
+              for (let i = tableStart; i <= tableEnd; i++) {
+                tableLines.push(view.state.doc.line(i).text);
+              }
+              
+              const rows = tableLines.filter(l => l.includes('|') && !l.match(/^\s*\|?\s*:?-+:?\s*\|/));
+              const cols = rows[0]?.split('|').filter(c => c.trim()).length || 3;
+              
+              setTableSelection({
+                content: tableLines.join('\n'),
+                rows: rows.length,
+                cols
+              });
+            } else {
+              setTableSelection(undefined);
+            }
+            
+            setShowTableEditor(true);
+          }
           break;
       }
       
@@ -347,7 +434,17 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, showP
   }), []);
 
   return (
-    <EditorContainer ref={editorRef} $fullWidth={!showPreview} />
+    <>
+      <EditorContainer ref={editorRef} $fullWidth={!showPreview} />
+      {showTableEditor && (
+        <TableEditor
+          position={tableEditorPosition}
+          onInsert={handleTableInsert}
+          onClose={() => setShowTableEditor(false)}
+          initialSelection={tableSelection}
+        />
+      )}
+    </>
   );
 });
 

@@ -1,0 +1,240 @@
+import { EditorView, ViewPlugin, ViewUpdate, Decoration, DecorationSet } from '@codemirror/view';
+import { EditorState, StateField, StateEffect, Range } from '@codemirror/state';
+
+// Configuration for large file handling
+export const LARGE_FILE_THRESHOLD = 50000; // 50KB
+export const CHUNK_SIZE = 10000; // 10KB chunks
+export const VIRTUAL_SCROLL_THRESHOLD = 1000; // 1000 lines
+
+// Check if a file is considered large
+export function isLargeFile(content: string): boolean {
+  return content.length > LARGE_FILE_THRESHOLD;
+}
+
+// Lazy loading state effect
+const lazyLoadEffect = StateEffect.define<{ from: number; to: number }>();
+
+// Virtual scrolling decoration
+class VirtualPlaceholder extends WidgetType {
+  constructor(readonly lines: number, readonly height: number) {
+    super();
+  }
+  
+  toDOM() {
+    const div = document.createElement('div');
+    div.style.height = `${this.height}px`;
+    div.style.background = 'var(--bg-secondary)';
+    div.style.display = 'flex';
+    div.style.alignItems = 'center';
+    div.style.justifyContent = 'center';
+    div.style.color = 'var(--text-tertiary)';
+    div.style.fontSize = '13px';
+    div.textContent = `${this.lines} lines hidden for performance`;
+    return div;
+  }
+}
+
+// Virtual scrolling state field
+export const virtualScrollState = StateField.define<DecorationSet>({
+  create() {
+    return Decoration.none;
+  },
+  update(decorations, tr) {
+    decorations = decorations.map(tr.changes);
+    
+    for (const effect of tr.effects) {
+      if (effect.is(lazyLoadEffect)) {
+        // Remove placeholder and show actual content
+        decorations = decorations.update({
+          filter: (from, to) => from < effect.value.from || to > effect.value.to
+        });
+      }
+    }
+    
+    return decorations;
+  },
+  provide: f => EditorView.decorations.from(f)
+});
+
+// Virtual scrolling view plugin
+export const virtualScrollPlugin = ViewPlugin.fromClass(class {
+  decorations: DecorationSet;
+  visibleRanges: { from: number; to: number }[] = [];
+  
+  constructor(view: EditorView) {
+    this.decorations = this.computeDecorations(view);
+  }
+  
+  update(update: ViewUpdate) {
+    if (update.viewportChanged || update.docChanged) {
+      this.decorations = this.computeDecorations(update.view);
+    }
+  }
+  
+  computeDecorations(view: EditorView): DecorationSet {
+    const decorations: Range<Decoration>[] = [];
+    const { state } = view;
+    
+    // Only apply virtual scrolling for large documents
+    if (state.doc.lines < VIRTUAL_SCROLL_THRESHOLD) {
+      return Decoration.none;
+    }
+    
+    const viewport = view.viewport;
+    const buffer = 50; // Lines to render outside viewport
+    
+    // Calculate visible range with buffer
+    const visibleFrom = Math.max(0, state.doc.lineAt(viewport.from).number - buffer);
+    const visibleTo = Math.min(state.doc.lines, state.doc.lineAt(viewport.to).number + buffer);
+    
+    // Create placeholders for hidden sections
+    if (visibleFrom > 1) {
+      const startLine = state.doc.line(1);
+      const endLine = state.doc.line(visibleFrom - 1);
+      const lines = visibleFrom - 1;
+      const height = lines * 20; // Approximate line height
+      
+      decorations.push(
+        Decoration.replace({
+          widget: new VirtualPlaceholder(lines, height),
+          inclusive: true
+        }).range(startLine.from, endLine.to)
+      );
+    }
+    
+    if (visibleTo < state.doc.lines) {
+      const startLine = state.doc.line(visibleTo + 1);
+      const endLine = state.doc.line(state.doc.lines);
+      const lines = state.doc.lines - visibleTo;
+      const height = lines * 20; // Approximate line height
+      
+      decorations.push(
+        Decoration.replace({
+          widget: new VirtualPlaceholder(lines, height),
+          inclusive: true
+        }).range(startLine.from, endLine.to)
+      );
+    }
+    
+    return decorations.length > 0 ? RangeSet.of(decorations) : Decoration.none;
+  }
+}, {
+  decorations: v => v.decorations
+});
+
+// Chunk-based loading for extremely large files
+export class ChunkedDocument {
+  private chunks: Map<number, string> = new Map();
+  private chunkSize: number;
+  
+  constructor(private content: string, chunkSize: number = CHUNK_SIZE) {
+    this.chunkSize = chunkSize;
+    this.initializeChunks();
+  }
+  
+  private initializeChunks() {
+    const numChunks = Math.ceil(this.content.length / this.chunkSize);
+    
+    // Load first and last chunks immediately
+    this.loadChunk(0);
+    if (numChunks > 1) {
+      this.loadChunk(numChunks - 1);
+    }
+  }
+  
+  private loadChunk(index: number) {
+    const start = index * this.chunkSize;
+    const end = Math.min(start + this.chunkSize, this.content.length);
+    this.chunks.set(index, this.content.slice(start, end));
+  }
+  
+  getChunk(index: number): string | null {
+    if (!this.chunks.has(index)) {
+      this.loadChunk(index);
+    }
+    return this.chunks.get(index) || null;
+  }
+  
+  getRange(from: number, to: number): string {
+    const startChunk = Math.floor(from / this.chunkSize);
+    const endChunk = Math.floor(to / this.chunkSize);
+    
+    let result = '';
+    for (let i = startChunk; i <= endChunk; i++) {
+      const chunk = this.getChunk(i);
+      if (chunk) {
+        const chunkStart = i * this.chunkSize;
+        const chunkEnd = chunkStart + chunk.length;
+        
+        const sliceStart = Math.max(0, from - chunkStart);
+        const sliceEnd = Math.min(chunk.length, to - chunkStart);
+        
+        result += chunk.slice(sliceStart, sliceEnd);
+      }
+    }
+    
+    return result;
+  }
+}
+
+// Performance monitoring
+export class PerformanceMonitor {
+  private metrics: Map<string, number[]> = new Map();
+  
+  startMeasure(name: string): () => void {
+    const start = performance.now();
+    return () => {
+      const duration = performance.now() - start;
+      if (!this.metrics.has(name)) {
+        this.metrics.set(name, []);
+      }
+      this.metrics.get(name)!.push(duration);
+      
+      // Log if operation is slow
+      if (duration > 100) {
+        console.warn(`Slow operation: ${name} took ${duration.toFixed(2)}ms`);
+      }
+    };
+  }
+  
+  getAverageTime(name: string): number {
+    const times = this.metrics.get(name);
+    if (!times || times.length === 0) return 0;
+    return times.reduce((a, b) => a + b, 0) / times.length;
+  }
+  
+  logMetrics() {
+    console.log('Performance Metrics:');
+    this.metrics.forEach((times, name) => {
+      console.log(`  ${name}: avg ${this.getAverageTime(name).toFixed(2)}ms`);
+    });
+  }
+}
+
+// Debounced updates for better performance
+export function createDebouncedUpdate(
+  callback: (content: string) => void,
+  delay: number = 300
+): (content: string) => void {
+  let timeout: NodeJS.Timeout | null = null;
+  
+  return (content: string) => {
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      callback(content);
+    }, delay);
+  };
+}
+
+// Missing import fix
+class WidgetType {
+  toDOM(): HTMLElement {
+    return document.createElement('div');
+  }
+}
+
+class RangeSet {
+  static of(ranges: Range<any>[]): any {
+    return ranges;
+  }
+}

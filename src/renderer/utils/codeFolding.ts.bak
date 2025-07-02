@@ -1,0 +1,250 @@
+import { EditorView, Decoration, DecorationSet, WidgetType } from '@codemirror/view';
+import { StateField, StateEffect, EditorState, Range } from '@codemirror/state';
+import { syntaxTree } from '@codemirror/language';
+
+// Folding effect
+const foldEffect = StateEffect.define<{ from: number; to: number }>();
+const unfoldEffect = StateEffect.define<{ from: number; to: number }>();
+
+// Widget for folded content
+class FoldWidget extends WidgetType {
+  constructor(readonly count: number) {
+    super();
+  }
+  
+  toDOM() {
+    const span = document.createElement('span');
+    span.className = 'cm-fold-widget';
+    span.textContent = `⋯ ${this.count} lines`;
+    span.style.cssText = `
+      background: var(--accent-light);
+      color: var(--accent-color);
+      padding: 0 6px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9em;
+      margin: 0 4px;
+    `;
+    return span;
+  }
+  
+  ignoreEvent() { return false; }
+}
+
+// Folding state field
+export const foldingState = StateField.define<DecorationSet>({
+  create() {
+    return Decoration.none;
+  },
+  update(folds, tr) {
+    folds = folds.map(tr.changes);
+    
+    for (const effect of tr.effects) {
+      if (effect.is(foldEffect)) {
+        const lineCount = tr.state.doc.lineAt(effect.value.to).number - 
+                         tr.state.doc.lineAt(effect.value.from).number;
+        folds = folds.update({
+          add: [
+            Decoration.replace({
+              widget: new FoldWidget(lineCount),
+              inclusive: true
+            }).range(effect.value.from, effect.value.to)
+          ]
+        });
+      } else if (effect.is(unfoldEffect)) {
+        folds = folds.update({
+          filter: (from, to) => from < effect.value.from || to > effect.value.to
+        });
+      }
+    }
+    
+    return folds;
+  },
+  provide: f => EditorView.decorations.from(f)
+});
+
+// Find foldable regions
+function findFoldableRegions(state: EditorState): Range<any>[] {
+  const regions: Range<any>[] = [];
+  const tree = syntaxTree(state);
+  
+  tree.iterate({
+    enter(node) {
+      // Fold code blocks
+      if (node.name === 'FencedCode' || node.name === 'CodeBlock') {
+        const startLine = state.doc.lineAt(node.from);
+        const endLine = state.doc.lineAt(node.to);
+        if (endLine.number - startLine.number > 1) {
+          regions.push({ from: startLine.to, to: endLine.from });
+        }
+      }
+      
+      // Fold sections based on headings
+      if (node.name.startsWith('ATXHeading')) {
+        const level = parseInt(node.name.slice(-1));
+        const startLine = state.doc.lineAt(node.from);
+        let endPos = state.doc.length;
+        
+        // Find next heading of same or higher level
+        let foundEnd = false;
+        tree.iterate({
+          from: node.to,
+          enter(nextNode) {
+            if (!foundEnd && nextNode.name.startsWith('ATXHeading')) {
+              const nextLevel = parseInt(nextNode.name.slice(-1));
+              if (nextLevel <= level) {
+                endPos = state.doc.lineAt(nextNode.from).from - 1;
+                foundEnd = true;
+              }
+            }
+          }
+        });
+        
+        const endLine = state.doc.lineAt(Math.min(endPos, state.doc.length - 1));
+        if (endLine.number - startLine.number > 1) {
+          regions.push({ from: startLine.to, to: endLine.to });
+        }
+      }
+      
+      // Fold lists
+      if (node.name === 'ListItem') {
+        const startLine = state.doc.lineAt(node.from);
+        const endLine = state.doc.lineAt(node.to);
+        if (endLine.number - startLine.number > 0) {
+          regions.push({ from: startLine.to, to: node.to });
+        }
+      }
+    }
+  });
+  
+  return regions;
+}
+
+// Fold gutter marker
+const foldGutterMarker = new class extends WidgetType {
+  toDOM() {
+    const span = document.createElement('span');
+    span.className = 'cm-fold-marker';
+    span.textContent = '▼';
+    span.style.cssText = `
+      cursor: pointer;
+      color: var(--text-tertiary);
+      font-size: 0.8em;
+      padding: 0 4px;
+    `;
+    return span;
+  }
+}();
+
+// Create fold gutter extension
+export function codeFoldGutter() {
+  return EditorView.gutter({
+    class: 'cm-fold-gutter',
+    markers(view) {
+      const markers: Range<any>[] = [];
+      const regions = findFoldableRegions(view.state);
+      
+      for (const region of regions) {
+        const line = view.state.doc.lineAt(region.from);
+        markers.push(foldGutterMarker.range(line.from));
+      }
+      
+      return markers.length > 0 ? RangeSet.of(markers) : RangeSet.empty;
+    },
+    domEventHandlers: {
+      click(view, line, event) {
+        const regions = findFoldableRegions(view.state);
+        const lineObj = view.state.doc.lineAt(line);
+        
+        for (const region of regions) {
+          if (view.state.doc.lineAt(region.from).from === lineObj.from) {
+            // Check if already folded
+            let isFolded = false;
+            view.state.field(foldingState).between(region.from, region.to, () => {
+              isFolded = true;
+            });
+            
+            if (isFolded) {
+              view.dispatch({ effects: unfoldEffect.of(region) });
+            } else {
+              view.dispatch({ effects: foldEffect.of(region) });
+            }
+            return true;
+          }
+        }
+        return false;
+      }
+    }
+  });
+}
+
+// Keyboard shortcuts for folding
+export const foldKeymap = [
+  {
+    key: 'Ctrl-Shift-[',
+    mac: 'Cmd-Alt-[',
+    run: (view: EditorView) => {
+      const pos = view.state.selection.main.head;
+      const regions = findFoldableRegions(view.state);
+      
+      for (const region of regions) {
+        if (pos >= region.from && pos <= region.to) {
+          view.dispatch({ effects: foldEffect.of(region) });
+          return true;
+        }
+      }
+      return false;
+    }
+  },
+  {
+    key: 'Ctrl-Shift-]',
+    mac: 'Cmd-Alt-]',
+    run: (view: EditorView) => {
+      const pos = view.state.selection.main.head;
+      let unfolded = false;
+      
+      view.state.field(foldingState).between(0, view.state.doc.length, (from, to) => {
+        if (pos >= from && pos <= to) {
+          view.dispatch({ effects: unfoldEffect.of({ from, to }) });
+          unfolded = true;
+        }
+      });
+      
+      return unfolded;
+    }
+  },
+  {
+    key: 'Ctrl-Alt-[',
+    mac: 'Cmd-Alt-Shift-[',
+    run: (view: EditorView) => {
+      const regions = findFoldableRegions(view.state);
+      const effects = regions.map(region => foldEffect.of(region));
+      if (effects.length > 0) {
+        view.dispatch({ effects });
+      }
+      return true;
+    }
+  },
+  {
+    key: 'Ctrl-Alt-]',
+    mac: 'Cmd-Alt-Shift-]',
+    run: (view: EditorView) => {
+      const effects: StateEffect<any>[] = [];
+      view.state.field(foldingState).between(0, view.state.doc.length, (from, to) => {
+        effects.push(unfoldEffect.of({ from, to }));
+      });
+      if (effects.length > 0) {
+        view.dispatch({ effects });
+      }
+      return true;
+    }
+  }
+];
+
+// Missing import fix
+class RangeSet {
+  static of(ranges: Range<any>[]): any {
+    return ranges;
+  }
+  static empty = [];
+}
