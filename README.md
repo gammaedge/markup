@@ -1,112 +1,220 @@
 # Elegant Markdown Editor
 
-A modern, elegant Markdown editor for macOS built with Electron, featuring real-time preview, syntax highlighting, and native macOS integration.
+A powerful, feature-rich Markdown editor for macOS built with Electron. Experience a native macOS interface with advanced editing capabilities, real-time preview, and comprehensive markdown support.
 
-## Features
+## 🌟 Features
 
-✅ **Clean, Native macOS Design**
-- Hidden title bar with native traffic lights
-- Follows system dark/light mode preferences
-- Elegant typography with SF Pro and SF Mono fonts
+### Core Editor Features
+- **Advanced CodeMirror 6 Editor** with syntax highlighting and auto-completion
+- **Real-time Markdown Preview** with synchronized scrolling
+- **Split-pane Interface** with adjustable layout
+- **Multi-tab Support** for working with multiple documents
+- **Vim Mode Support** with customizable keybindings
+- **Focus Mode** for distraction-free writing
+- **Smart Auto-save** with configurable intervals
 
-✅ **Powerful Editor**
-- CodeMirror 6 with Markdown syntax highlighting
-- Real-time preview panel with split view
-- Toggle preview on/off
-- Automatic save state tracking
+### Rich Text Formatting
+- **Full Markdown Support** including GFM (GitHub Flavored Markdown)
+- **Math Expressions** with KaTeX rendering (inline `$...$` and block `$$...$$`)
+- **Code Syntax Highlighting** with Prism.js
+- **Table Editor** with visual table creation and editing
+- **Task Lists** with checkbox support
+- **Smart Lists** with automatic formatting
+- **Block Quotes** and nested quotes
+- **Footnotes** and references
 
-✅ **File Operations**
-- New, Open, Save, and Save As functionality
-- Native macOS file dialogs
-- File path and modification status in status bar
+### Document Management
+- **File Operations**: New, Open, Save, Save As with native macOS dialogs
+- **Recent Files** tracking and quick access
+- **Document Tabs** with unsaved changes indicators
+- **Breadcrumb Navigation** showing file path hierarchy
+- **Quick Navigation** (Cmd+P) for fast file switching
+- **Document Outline** with heading-based navigation
 
-✅ **Live Statistics**
-- Word count
-- Character count
-- File modification indicator
+### Search and Navigation
+- **Find and Replace** with regex support
+- **Quick Nav** (Cmd+P) for jumping to files and headings
+- **Document Outline** panel for structure overview
+- **Go to Line** functionality
 
-## Installation
+### Export Capabilities
+- **HTML Export** with custom styling options
+- **Word Document Export** (.docx format)
+- **PDF Export** (coming soon)
+- **Markdown Export** with front matter support
 
+### Collaboration Features
+- **Comments System** for document annotations
+- **Comment Threading** with reply support
+- **Comment Resolution** tracking
+
+### User Interface
+- **Native macOS Design** with traffic light controls
+- **Dark/Light Theme** following system preferences
+- **Resizable Sidebar** with document list
+- **Customizable Layout** with collapsible panels
+- **Status Bar** with word count, character count, and cursor position
+- **Toolbar** with quick formatting buttons
+
+### Customization
+- **Settings Panel** with extensive configuration options
+- **Adjustable Font Size** and editor preferences
+- **Tab Size Configuration**
+- **Word Wrap Toggle**
+- **Line Numbers** and active line highlighting
+- **Code Folding** support
+- **Vim Mode** with relative line numbers option
+
+## 📦 Installation
+
+### Prerequisites
+- Node.js 18 or higher
+- npm or yarn
+- macOS (for full native experience)
+
+### Install from Source
 ```bash
 # Clone the repository
-git clone [repository-url]
+git clone https://github.com/yourusername/elegant-markdown-editor.git
 cd elegant-markdown-editor
 
 # Install dependencies
 npm install
 
-# Build and run the app
+# Build and run the application
 npm start
 ```
 
-## Development
+## 🚀 Usage Guide
 
+### Getting Started
+1. Launch the application
+2. Create a new document with `Cmd+N` or open existing with `Cmd+O`
+3. Start writing in Markdown on the left, see preview on the right
+4. Toggle preview with the preview button or `Cmd+P`
+
+### Keyboard Shortcuts
+
+#### File Operations
+- `Cmd+N` - New document
+- `Cmd+O` - Open file
+- `Cmd+S` - Save
+- `Cmd+Shift+S` - Save As
+- `Cmd+W` - Close tab
+- `Cmd+Tab` - Switch between tabs
+
+#### Editing
+- `Cmd+B` - Bold
+- `Cmd+I` - Italic
+- `Cmd+K` - Insert link
+- `Cmd+Shift+K` - Insert code block
+- `Cmd+/` - Toggle comment
+- `Cmd+]` - Indent
+- `Cmd+[` - Outdent
+
+#### Navigation
+- `Cmd+P` - Quick navigation
+- `Cmd+F` - Find
+- `Cmd+Shift+F` - Find and replace
+- `Cmd+G` - Go to line
+- `Cmd+Shift+O` - Document outline
+
+#### View
+- `Cmd+\` - Toggle sidebar
+- `Cmd+Shift+P` - Toggle preview
+- `Cmd+Shift+Enter` - Focus mode
+- `Cmd+,` - Settings
+
+### Markdown Support
+
+The editor supports all standard Markdown syntax plus:
+- Tables with alignment
+- Task lists `- [ ]` and `- [x]`
+- Strikethrough `~~text~~`
+- Footnotes `[^1]`
+- Math expressions (LaTeX)
+- Code blocks with syntax highlighting
+- HTML tags
+- Front matter (YAML)
+
+## 🔨 Building
+
+### Development Mode
 ```bash
-# Run webpack dev server (for renderer process)
+# Run webpack dev server for hot reloading
 npm run dev
 
-# In another terminal, run Electron in dev mode
+# In another terminal, run Electron
 npm run electron:dev
+```
 
-# Build for production
+### Production Build
+```bash
+# Build the application
 npm run build
 
-# Package the app
+# Create distributable package
 npm run dist
 ```
 
-## Keyboard Shortcuts
+The packaged application will be available in the `dist` folder.
 
-- **New File**: `Cmd+N`
-- **Open File**: `Cmd+O`
-- **Save**: `Cmd+S`
-- **Save As**: `Cmd+Shift+S`
+## 📸 Screenshots
 
-## Tech Stack
+![Main Editor Interface](screenshots/main-editor.png)
+*Main editor with split-pane preview*
 
-- **Electron**: Cross-platform desktop framework
-- **React**: UI library
-- **TypeScript**: Type-safe JavaScript
-- **CodeMirror 6**: Code editor
-- **styled-components**: CSS-in-JS styling
-- **unified/remark**: Markdown processing
-- **Webpack**: Module bundler
+![Dark Mode](screenshots/dark-mode.png)
+*Dark mode with syntax highlighting*
 
-## Project Structure
+![Focus Mode](screenshots/focus-mode.png)
+*Distraction-free focus mode*
 
-```
-elegant-markdown-editor/
-├── src/
-│   ├── main/           # Electron main process
-│   │   ├── index.ts    # Main entry point
-│   │   └── preload.ts  # Preload script
-│   └── renderer/       # Electron renderer process
-│       ├── components/ # React components
-│       ├── styles/     # Global styles
-│       ├── types/      # TypeScript definitions
-│       ├── App.tsx     # Main React component
-│       └── index.tsx   # Renderer entry point
-├── dist/               # Build output
-├── webpack.config.js   # Webpack configuration
-├── tsconfig.json       # TypeScript configuration
-└── package.json        # Project dependencies
-```
+![Settings Panel](screenshots/settings.png)
+*Comprehensive settings panel*
 
-## Next Steps
+## 🤝 Contributing
 
-The basic editor is now functional with all core features implemented. Future enhancements could include:
+We welcome contributions! Please follow these steps:
 
-- **Extended Markdown Features**: Tables, task lists, footnotes
-- **Export Options**: PDF, HTML, Word
-- **Themes**: Custom editor themes
-- **Plugins**: Extension system
-- **Document Outline**: Navigation sidebar
-- **Find/Replace**: Advanced search functionality
-- **Multiple Tabs**: Work with multiple documents
-- **Auto-save**: Configurable auto-save intervals
-- **Typography**: Smart quotes, em dashes
-- **Math Support**: LaTeX/KaTeX rendering
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-## License
+### Development Guidelines
+- Follow the existing code style
+- Write meaningful commit messages
+- Add tests for new features
+- Update documentation as needed
+- Ensure all tests pass before submitting PR
 
-MIT
+### Code Style
+- Use TypeScript for type safety
+- Follow ESLint configuration
+- Use styled-components for styling
+- Maintain component modularity
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [CodeMirror](https://codemirror.net/) for the powerful editor
+- [Electron](https://www.electronjs.org/) for cross-platform desktop support
+- [React](https://reactjs.org/) for the UI framework
+- [unified](https://unifiedjs.com/) for markdown processing
+- [KaTeX](https://katex.org/) for math rendering
+- [Prism.js](https://prismjs.com/) for syntax highlighting
+
+## 📞 Support
+
+- **Issues**: [GitHub Issues](https://github.com/yourusername/elegant-markdown-editor/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/yourusername/elegant-markdown-editor/discussions)
+- **Email**: support@elegantmarkdown.app
+
+---
+
+Made with ❤️ by the Elegant Markdown Editor team

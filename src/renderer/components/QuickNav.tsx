@@ -12,7 +12,7 @@ const Overlay = styled.div<{ $isVisible: boolean }>`
   align-items: flex-start;
   justify-content: center;
   padding-top: 100px;
-  z-index: 300;
+  z-index: 130; /* Below comments panel (150) */
   backdrop-filter: blur(4px);
 `;
 

@@ -11,7 +11,7 @@ const FindReplaceContainer = styled.div<{ $isVisible: boolean }>`
   border-radius: 8px;
   box-shadow: var(--shadow-lg);
   padding: 16px;
-  z-index: 200;
+  z-index: 120; /* Below comments panel (150) and quicknav (130) */
   transition: top var(--transition-normal);
 `;
 

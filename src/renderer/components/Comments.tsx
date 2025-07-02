@@ -10,7 +10,7 @@ const CommentsPanel = styled.div<{ $isOpen: boolean }>`
   background: var(--bg-secondary);
   border-left: 1px solid var(--border-color);
   transition: right var(--transition-normal);
-  z-index: 100;
+  z-index: 150;
   display: flex;
   flex-direction: column;
 `;
@@ -180,7 +180,7 @@ const ToggleButton = styled.button<{ $hasComments: boolean }>`
   justify-content: center;
   box-shadow: var(--shadow-lg);
   transition: all var(--transition-fast);
-  z-index: 99;
+  z-index: 140;
   
   &:hover {
     transform: scale(1.1);
