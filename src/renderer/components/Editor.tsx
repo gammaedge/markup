@@ -3,9 +3,10 @@ import styled from 'styled-components';
 import { EditorView, basicSetup } from 'codemirror';
 import { EditorState, Compartment, Transaction, Annotation } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
+import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
 import { oneDark } from '@codemirror/theme-one-dark';
 import { ViewUpdate, keymap } from '@codemirror/view';
-import { defaultKeymap, indentWithTab, insertNewlineAndIndent } from '@codemirror/commands';
+import { defaultKeymap, indentWithTab } from '@codemirror/commands';
 import TableEditor from './TableEditor';
 
 const EditorContainer = styled.div<{ $fullWidth: boolean }>`
@@ -121,25 +122,31 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, showP
       extensions: [
         basicSetup,
         markdown(),
+        syntaxHighlighting(defaultHighlightStyle),
         keymap.of([
           ...defaultKeymap,
-          indentWithTab,
-          { key: 'Enter', run: insertNewlineAndIndent }
+          indentWithTab
         ]),
+        EditorView.lineWrapping,
         themeConfig.current.of(isDark ? oneDark : []),
         EditorView.updateListener.of((update: ViewUpdate) => {
-          if (update.docChanged && !update.transactions.some(tr => tr.annotation(remoteTransaction))) {
-            onChangeRef.current(update.state.doc.toString());
-          }
-          
-          if (update.selectionSet && onSelectionChangeRef.current) {
-            const { from, to } = update.state.selection.main;
-            if (from !== to) {
-              const text = update.state.doc.sliceString(from, to);
-              onSelectionChangeRef.current({ start: from, end: to, text });
-            } else {
-              onSelectionChangeRef.current(null);
+          try {
+            if (update.docChanged && !update.transactions.some(tr => tr.annotation(remoteTransaction))) {
+              const content = update.state.doc.toString();
+              onChangeRef.current(content);
             }
+            
+            if (update.selectionSet && onSelectionChangeRef.current) {
+              const { from, to } = update.state.selection.main;
+              if (from !== to) {
+                const text = update.state.doc.sliceString(from, to);
+                onSelectionChangeRef.current({ start: from, end: to, text });
+              } else {
+                onSelectionChangeRef.current(null);
+              }
+            }
+          } catch (error) {
+            console.error('Editor update error:', error);
           }
         }),
         EditorView.theme({
@@ -160,12 +167,22 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, showP
     const view = new EditorView({
       state: startState,
       parent: editorRef.current,
+      dispatch: (transaction) => {
+        // Log key events for debugging
+        if (transaction.isUserEvent('input')) {
+          console.log('User input event:', transaction);
+        }
+        view.update([transaction]);
+      }
     });
 
     viewRef.current = view;
     
     // Focus the editor on mount
-    setTimeout(() => view.focus(), 100);
+    setTimeout(() => {
+      view.focus();
+      console.log('Editor initialized successfully');
+    }, 100);
 
     return () => {
       view.destroy();
@@ -176,6 +193,8 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, showP
     if (viewRef.current && content !== viewRef.current.state.doc.toString()) {
       const view = viewRef.current;
       const currentPos = view.state.selection.main.head;
+      const scrollPos = view.scrollDOM.scrollTop;
+      
       view.dispatch({
         changes: {
           from: 0,
@@ -184,6 +203,11 @@ const Editor = forwardRef<EditorHandle, EditorProps>(({ content, onChange, showP
         },
         selection: { anchor: Math.min(currentPos, content.length) },
         annotations: [remoteTransaction.of(true)]
+      });
+      
+      // Restore scroll position
+      requestAnimationFrame(() => {
+        view.scrollDOM.scrollTop = scrollPos;
       });
     }
   }, [content]);
